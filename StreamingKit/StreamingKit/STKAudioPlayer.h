@@ -198,6 +198,11 @@ typedef void(^STKFrameFilter)(UInt32 channelsPerFrame, UInt32 bytesPerFrame, UIn
 /// Plays an item from the given URL (all pending queued items are removed)
 -(void) play:(NSString*)urlString withQueueItemID:(NSObject*)queueItemId;
 
+/// Plays an item from the given URL and from TimeOffset
+- (void)play:(NSString*)urlString initialTimeOffset:(double)initialTimeOffset;
+
+-(void) playDataSource:(STKDataSource *)dataSource withQueueItemID:(NSObject*)queueItemId initialTimeOffset:(double)initialTimeOffset;
+
 /// Plays an item from the given URL (all pending queued items are removed)
 /// The NSURL is used as the queue item ID
 -(void) playURL:(NSURL*)url;

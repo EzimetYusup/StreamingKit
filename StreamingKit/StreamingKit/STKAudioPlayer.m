@@ -763,6 +763,16 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
 	[self setDataSource:[STKAudioPlayer dataSourceFromURL:url] withQueueItemId:queueItemId];
 }
 
+-(void)play:(NSString*)urlString initialTimeOffset:(double)initialTimeOffset {
+    NSURL* url = [NSURL URLWithString:urlString];
+    [self setDataSource:[STKAudioPlayer dataSourceFromURL:url] withQueueItemId:urlString initialTimeOffset:initialTimeOffset];
+}
+
+
+-(void) playDataSource:(STKDataSource *)dataSource withQueueItemID:(NSObject*)queueItemId initialTimeOffset:(double)initialTimeOffset {
+    [self setDataSource:dataSource withQueueItemId:queueItemId initialTimeOffset:initialTimeOffset];
+}
+
 -(void) playDataSource:(STKDataSource*)dataSource
 {
 	[self playDataSource:dataSource withQueueItemID:dataSource];
@@ -792,6 +802,30 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
     }
     pthread_mutex_unlock(&playerMutex);
     
+    [self wakeupPlaybackThread];
+}
+
+-(void) setDataSource:(STKDataSource*)dataSourceIn withQueueItemId:(NSObject*)queueItemId initialTimeOffset:(double)initialTimeOffset
+{
+    pthread_mutex_lock(&playerMutex);
+    {
+        LOGINFO(([NSString stringWithFormat:@"Playing: %@", [queueItemId description]]));
+
+        if (![self audioGraphIsRunning])
+        {
+            [self startSystemBackgroundTask];
+        }
+
+        [self clearQueue];
+
+        STKQueueEntry *queueEntry = [[STKQueueEntry alloc] initWithDataSource:dataSourceIn andQueueItemId:queueItemId];
+        queueEntry.initialTimeOffset = initialTimeOffset;
+        [upcomingQueue enqueue:queueEntry];
+
+        self.internalState = STKAudioPlayerInternalStatePendingNext;
+    }
+    pthread_mutex_unlock(&playerMutex);
+
     [self wakeupPlaybackThread];
 }
 
@@ -1376,6 +1410,7 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
             
             [self setCurrentlyReadingEntry:entry andStartPlaying:YES];
             [self resetPcmBuffers];
+            [self seekToTime:entry.initialTimeOffset];
         }
         else if (seekToTimeWasRequested && currentlyPlayingEntry && currentlyPlayingEntry != currentlyReadingEntry)
         {
