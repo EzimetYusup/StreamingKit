@@ -1183,9 +1183,11 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
 -(void) audioQueueFinishedPlaying:(STKQueueEntry*)entry
 {
     STKQueueEntry* next = [bufferingQueue dequeue];
-    
-    [self processFinishPlayingIfAnyAndPlayingNext:entry withNext:next];
-    [self processRunloop];
+    __weak typeof(self) weakSelf = self;
+    [self invokeOnPlaybackThread:^{
+        [weakSelf processFinishPlayingIfAnyAndPlayingNext:entry withNext:next];
+        [weakSelf processRunloop];
+    }];
 }
 
 -(void) setCurrentlyReadingEntry:(STKQueueEntry*)entry andStartPlaying:(BOOL)startPlaying
