@@ -39,7 +39,7 @@
 #import "STKLocalFileDataSource.h"
 #import "STKQueueEntry.h"
 #import "NSMutableArray+STKAudioPlayer.h"
-#import "libkern/OSAtomic.h"
+#import <stdatomic.h>
 #import <float.h>
 
 #ifndef DBL_MAX
@@ -243,7 +243,7 @@ static AudioStreamBasicDescription recordAudioStreamBasicDescription;
 	AudioComponentInstance outputUnit;
 		
     UInt32 eqBandCount;
-    int32_t waitingForDataAfterSeekFrameCount;
+    _Atomic(int32_t) waitingForDataAfterSeekFrameCount;
 	
     UInt32 framesRequiredToStartPlaying;
     UInt32 framesRequiredToPlayAfterRebuffering;
@@ -288,7 +288,7 @@ static AudioStreamBasicDescription recordAudioStreamBasicDescription;
     
 	void(^stopBackBackgroundTaskBlock)(void);
     
-    int32_t seekVersion;
+    _Atomic(int32_t) seekVersion;
     os_unfair_lock seekLock;
     os_unfair_lock currentEntryReferencesLock;
 
@@ -1099,13 +1099,19 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
 -(float) overlap
 {
 	AudioUnitParameterValue overlapValue;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 	AudioUnitGetParameter(playbackRateUnit, kNewTimePitchParam_Overlap, kAudioUnitScope_Global, 0, &overlapValue);
+#pragma clang diagnostic pop
 	return overlapValue;
 }
 
 -(void) setOverlap:(float)overlap
 {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 	AudioUnitSetParameter(playbackRateUnit, kNewTimePitchParam_Overlap, kAudioUnitScope_Global, 0, overlap, 0);
+#pragma clang diagnostic pop
 }
 
 -(BOOL) invokeOnPlaybackThread:(void(^)(void))block
@@ -1156,7 +1162,7 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
     
     if (!seekAlreadyRequested)
     {
-        OSAtomicIncrement32(&seekVersion);
+        atomic_fetch_add(&seekVersion, 1);
         
         lockUnlock(&seekLock);
         
@@ -1464,7 +1470,7 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
             BOOL originalSeekToTimeRequested;
 
             setLock(&seekLock);
-            originalSeekVersion = seekVersion;
+            originalSeekVersion = atomic_load(&seekVersion);
             originalSeekToTimeRequested = seekToTimeWasRequested;
             lockUnlock(&seekLock);
             
@@ -1473,7 +1479,7 @@ static void AudioFileStreamPacketsProc(void* clientData, UInt32 numberBytes, UIn
                 [self processSeekToTime];
                 
                 setLock(&seekLock);
-                if (originalSeekVersion == seekVersion)
+                if (originalSeekVersion == atomic_load(&seekVersion))
                 {
                     seekToTimeWasRequested = NO;
                 }
@@ -2652,12 +2658,12 @@ OSStatus AudioConverterCallback(AudioConverterRef inAudioConverter, UInt32* ioNu
         
         for (int i = 0; i < count; i++)
         {
-			SInt64 packetSize;
+            SInt64 packetSize;
 			
 			packetSize = packetDescriptionsIn[i].mDataByteSize;
 			
-            OSAtomicAdd32((int32_t)packetSize, &currentlyReadingEntry->processedPacketsSizeTotal);
-            OSAtomicIncrement32(&currentlyReadingEntry->processedPacketsCount);
+            atomic_fetch_add(&currentlyReadingEntry->processedPacketsSizeTotal, (int)packetSize);
+            atomic_fetch_add(&currentlyReadingEntry->processedPacketsCount, 1);
         }
     }
     
@@ -3107,7 +3113,7 @@ static OSStatus OutputRenderCallback(void* inRefCon, AudioUnitRenderActionFlags*
 		{
 			if (totalFramesCopied == 0)
 			{
-				OSAtomicAdd32(inNumberFrames - totalFramesCopied, &audioPlayer->waitingForDataAfterSeekFrameCount);
+				atomic_fetch_add(&audioPlayer->waitingForDataAfterSeekFrameCount, inNumberFrames - totalFramesCopied);
 				
 				if (audioPlayer->waitingForDataAfterSeekFrameCount > audioPlayer->framesRequiredBeforeWaitingForDataAfterSeekBecomesPlaying)
 				{

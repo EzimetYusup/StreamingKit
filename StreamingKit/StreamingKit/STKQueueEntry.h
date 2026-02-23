@@ -6,6 +6,7 @@
 //  Copyright (c) 2014 Thong Nguyen. All rights reserved.
 //
 
+#import <stdatomic.h>
 #import "STKDataSource.h"
 #import "STKSpinLock.h"
 #import "AudioToolbox/AudioToolbox.h"
@@ -27,8 +28,8 @@ NS_ASSUME_NONNULL_BEGIN
     volatile SInt64 framesQueued;
     volatile SInt64 framesPlayed;
     volatile SInt64 lastFrameQueued;
-    volatile int processedPacketsCount;
-	volatile int processedPacketsSizeTotal;
+    _Atomic(int) processedPacketsCount;
+    _Atomic(int) processedPacketsSizeTotal;
     AudioStreamBasicDescription audioStreamBasicDescription;
     double durationHint;
 }

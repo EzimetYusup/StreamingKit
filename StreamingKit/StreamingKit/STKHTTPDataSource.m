@@ -145,7 +145,6 @@
             @"audio/caf": @(kAudioFileCAFType),
             @"audio/x-caf": @(kAudioFileCAFType),
             @"audio/aac": @(kAudioFileAAC_ADTSType),
-            @"audio/aacp": @(kAudioFileAAC_ADTSType),
             @"audio/ac3": @(kAudioFileAC3Type),
             @"audio/3gp": @(kAudioFile3GPType),
             @"video/3gp": @(kAudioFile3GPType),
@@ -219,7 +218,10 @@
 {
     if (!httpHeaderNotAvailable)
     {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         CFTypeRef response = CFReadStreamCopyProperty(stream, kCFStreamPropertyHTTPResponseHeader);
+#pragma clang diagnostic pop
         
         if (response)
         {
@@ -618,7 +620,10 @@
         CFHTTPMessageSetHeaderFieldValue(message, CFSTR("Accept"), CFSTR("*/*"));
         CFHTTPMessageSetHeaderFieldValue(message, CFSTR("Icy-MetaData"), CFSTR("1"));
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         self->stream = CFReadStreamCreateForHTTPRequest(NULL, message);
+#pragma clang diagnostic pop
         
         if (self->stream == nil)
         {
@@ -631,7 +636,10 @@
  
         CFReadStreamSetProperty(self->stream, (__bridge CFStringRef)NSStreamNetworkServiceTypeBackground, (__bridge CFStringRef)NSStreamNetworkServiceTypeBackground);
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         if (!CFReadStreamSetProperty(self->stream, kCFStreamPropertyHTTPShouldAutoredirect, kCFBooleanTrue))
+#pragma clang diagnostic pop
         {
             CFRelease(message);
 
@@ -642,7 +650,10 @@
 
         // Proxy support
         CFDictionaryRef proxySettings = CFNetworkCopySystemProxySettings();
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         CFReadStreamSetProperty(self->stream, kCFStreamPropertyHTTPProxy, proxySettings);
+#pragma clang diagnostic pop
         CFRelease(proxySettings);
 
         // SSL support
